@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBAC API Tester</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 30px;
+            max-width: 700px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f1f1f1;
+            font-size: 14px;
+            color: #333;
+            word-break: break-word;
+        }
+        .response.error {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .steps {
+            margin-top: 20px;
+        }
+        .spinner-border {
+            display: none;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Complete RBAC Tester</h2>
+
+        <!-- Step 1: Register User -->
+        <div class="steps">
+            <h3>Step 1: Register User</h3>
+            <form id="registerForm">
+                <div class="mb-3">
+                    <label for="registerUsername" class="form-label">Username</label>
+                    <input type="text" id="registerUsername" class="form-control" placeholder="Enter username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="registerEmail" class="form-label">Email</label>
+                    <input type="email" id="registerEmail" class="form-control" placeholder="Enter email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="registerPassword" class="form-label">Password</label>
+                    <input type="password" id="registerPassword" class="form-control" placeholder="Enter password" required>
+                </div>
+                <div class="mb-3">
+                    <label for="registerRole" class="form-label">Role ID</label>
+                    <input type="number" id="registerRole" class="form-control" placeholder="Enter role ID (e.g., 1 for Admin)" required>
+                </div>
+                <button type="button" id="registerBtn" class="btn btn-primary w-100">Register User</button>
+            </form>
+            <div id="registerResponse" class="response"></div>
+        </div>
+
+        <!-- Step 2: Obtain Access Token -->
+        <div class="steps">
+            <h3>Step 2: Obtain Access Token</h3>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="loginUsername" class="form-label">Username</label>
+                    <input type="text" id="loginUsername" class="form-control" placeholder="Enter username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="loginPassword" class="form-label">Password</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Enter password" required>
+                </div>
+                <button type="button" id="getTokenBtn" class="btn btn-primary w-100">Get Access Token</button>
+            </form>
+            <div id="tokenResponse" class="response"></div>
+        </div>
+
+        <!-- Step 3: Test Protected Endpoint -->
+        <div class="steps">
+            <h3>Step 3: Access Protected Endpoint</h3>
+            <button type="button" id="accessProtectedBtn" class="btn btn-primary w-100">Test Protected Endpoint</button>
+            <div id="protectedResponse" class="response"></div>
+        </div>
+
+        <!-- Step 4: Manage Roles -->
+        <div class="steps">
+            <h3>Step 4: Manage Roles</h3>
+            <button type="button" id="listRolesBtn" class="btn btn-primary w-100 mb-3">List Roles</button>
+            <div id="rolesList" class="response"></div>
+            <form id="roleForm">
+                <div class="mb-3">
+                    <label for="roleName" class="form-label">Role Name</label>
+                    <input type="text" id="roleName" class="form-control" placeholder="Enter role name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="roleDescription" class="form-label">Role Description</label>
+                    <input type="text" id="roleDescription" class="form-control" placeholder="Enter role description" required>
+                </div>
+                <button type="button" id="addRoleBtn" class="btn btn-primary w-100">Add Role</button>
+            </form>
+            <div id="roleResponse" class="response"></div>
+        </div>
+
+        <!-- Step 5: Refresh Token -->
+        <div class="steps">
+            <h3>Step 5: Refresh Token</h3>
+            <button type="button" id="refreshTokenBtn" class="btn btn-primary w-100">Refresh Access Token</button>
+            <div id="refreshResponse" class="response"></div>
+        </div>
+
+        <!-- Step 6: Logout -->
+        <div class="steps">
+            <h3>Step 6: Logout</h3>
+            <button type="button" id="logoutBtn" class="btn btn-danger w-100">Logout</button>
+            <div id="logoutResponse" class="response"></div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="spinner-border" id="loadingSpinner" style="display:none;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const baseUrl = "http://127.0.0.1:8000/api/users";
+
+        // Helper functions for error handling
+        function displayError(element, message) {
+            element.textContent = `Error: ${message}`;
+            element.classList.add("error");
+        }
+
+        function clearError(element) {
+            element.textContent = "";
+            element.classList.remove("error");
+        }
+
+        function showLoadingSpinner() {
+            document.getElementById("loadingSpinner").style.display = "inline-block";
+        }
+
+        function hideLoadingSpinner() {
+            document.getElementById("loadingSpinner").style.display = "none";
+        }
+
+        // Step 1: Register User
+        document.getElementById("registerBtn").addEventListener("click", async () => {
+            const username = document.getElementById("registerUsername").value.trim();
+            const email = document.getElementById("registerEmail").value.trim();
+            const password = document.getElementById("registerPassword").value.trim();
+            const role = document.getElementById("registerRole").value.trim();
+
+            const registerResponse = document.getElementById("registerResponse");
+
+            if (!username || !email || !password || !role) {
+                displayError(registerResponse, "All fields are required.");
+                return;
+            }
+
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                displayError(registerResponse, "Enter a valid email address.");
+                return;
+            }
+
+            if (isNaN(role)) {
+                displayError(registerResponse, "Role ID must be a number.");
+                return;
+            }
+
+            clearError(registerResponse);
+
+            try {
+                const response = await fetch(`${baseUrl}/register/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, email, password, role }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    registerResponse.textContent = `User registered successfully with ID: ${data.id}`;
+                } else {
+                    const errorDetails = Object.entries(data)
+                        .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+                        .join("\n");
+                    displayError(registerResponse, errorDetails);
+                }
+            } catch (error) {
+                displayError(registerResponse, "Network error or server unreachable.");
+            }
+        });
+
+        // Step 2: Obtain Token
+        document.getElementById("getTokenBtn").addEventListener("click", async () => {
+            const username = document.getElementById("loginUsername").value.trim();
+            const password = document.getElementById("loginPassword").value.trim();
+            const tokenResponse = document.getElementById("tokenResponse");
+
+            if (!username || !password) {
+                displayError(tokenResponse, "Username and password are required.");
+                return;
+            }
+
+            clearError(tokenResponse);
+
+            showLoadingSpinner();
+
+            try {
+                const response = await fetch(`${baseUrl}/token/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    tokenResponse.textContent = `Access Token: ${data.access}`;
+                    localStorage.setItem("access_token", data.access);
+                    localStorage.setItem("refresh_token", data.refresh);
+                } else {
+                    displayError(tokenResponse, data.detail || "Invalid credentials.");
+                }
+            } catch (error) {
+                displayError(tokenResponse, "Network error or server unreachable.");
+            } finally {
+                hideLoadingSpinner();
+            }
+        });
+
+        // Step 3: Test Protected Endpoint
+        document.getElementById("accessProtectedBtn").addEventListener("click", async () => {
+            const accessToken = localStorage.getItem("access_token");
+            const protectedResponse = document.getElementById("protectedResponse");
+
+            if (!accessToken) {
+                displayError(protectedResponse, "No access token found. Please log in.");
+                return;
+            }
+
+            clearError(protectedResponse);
+
+            try {
+                const response = await fetch(`${baseUrl}/protected/`, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    protectedResponse.textContent = `Response: ${JSON.stringify(data)}`;
+                } else {
+                    displayError(protectedResponse, data.detail || "Unauthorized access.");
+                }
+            } catch (error) {
+                displayError(protectedResponse, "Network error or server unreachable.");
+            }
+        });
+
+        // Step 4: Manage Roles
+        document.getElementById("listRolesBtn").addEventListener("click", async () => {
+            const accessToken = localStorage.getItem("access_token");
+            const response = await fetch(`${baseUrl}/roles/`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            const data = await response.json();
+            const rolesList = document.getElementById("rolesList");
+
+            if (response.ok) {
+                rolesList.innerHTML = `<ul>${data.map(role => `<li>${role.name}: ${role.description}</li>`).join("")}</ul>`;
+                rolesList.classList.remove("error");
+            } else {
+                rolesList.textContent = `Error: ${data.detail || "Failed to fetch roles"}`;
+                rolesList.classList.add("error");
+            }
+        });
+
+        // Step 4: Add Role
+        document.getElementById("addRoleBtn").addEventListener("click", async () => {
+            const roleName = document.getElementById("roleName").value;
+            const roleDescription = document.getElementById("roleDescription").value;
+
+            const accessToken = localStorage.getItem("access_token");
+            const response = await fetch(`${baseUrl}/roles/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({ name: roleName, description: roleDescription }),
+            });
+
+            const data = await response.json();
+            const roleResponse = document.getElementById("roleResponse");
+
+            if (response.ok) {
+                roleResponse.textContent = `Role "${data.name}" created successfully!`;
+                roleResponse.classList.remove("error");
+            } else {
+                roleResponse.textContent = `Error: ${data.detail || "Failed to create role"}`;
+                roleResponse.classList.add("error");
+            }
+        });
+
+        // Step 5: Refresh Token
+        document.getElementById("refreshTokenBtn").addEventListener("click", async () => {
+            const refreshToken = localStorage.getItem("refresh_token");
+
+            if (!refreshToken) {
+                document.getElementById("refreshResponse").textContent = "No refresh token available!";
+                document.getElementById("refreshResponse").classList.add("error");
+                return;
+            }
+
+            const response = await fetch(`${baseUrl}/token/refresh/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ refresh: refreshToken }),
+            });
+
+            const data = await response.json();
+            const refreshResponse = document.getElementById("refreshResponse");
+
+            if (response.ok) {
+                refreshResponse.textContent = `New Access Token: ${data.access}`;
+                localStorage.setItem("access_token", data.access); // Update access token
+                refreshResponse.classList.remove("error");
+            } else {
+                refreshResponse.textContent = `Error: ${data.detail || "Failed to refresh token"}`;
+                refreshResponse.classList.add("error");
+            }
+        });
+
+        // Step 6: Logout
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            // Clear tokens from localStorage
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+
+            // Provide feedback to the user
+            const logoutResponse = document.getElementById("logoutResponse");
+            logoutResponse.textContent = "You have been logged out successfully!";
+            logoutResponse.classList.remove("error");
+        });
+    </script>
+</body>
+</html>
