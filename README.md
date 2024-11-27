@@ -20,6 +20,7 @@ This project implements a Role-Based Access Control (RBAC) system using Django, 
 
 1. Clone the repository:
     ```bash
+    https://github.com/ChanduAI9/RBAC-Authentication-and-Authorization-System.git
     cd rbac_project
     ```
 
